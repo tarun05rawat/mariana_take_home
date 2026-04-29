@@ -1,0 +1,7 @@
+node_modules/
+dist/
+.venv/
+.npm-cache/
+.DS_Store
+
+data/mariana_minerals.sqlite
