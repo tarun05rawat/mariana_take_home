@@ -3,18 +3,51 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
 const DEFAULT_CENTER: [number, number] = [37.7749, -122.4194];
+const DATA_BOUNDS = L.latLngBounds(
+  [36.85, -123.35],
+  [38.72, -121.2],
+);
+const WORLD_MASK: L.LatLngTuple[] = [
+  [85, -180],
+  [85, 180],
+  [-85, 180],
+  [-85, -180],
+];
 
 type MapViewProps = {
   center: [number, number];
+  isLoading: boolean;
   radiusKm: number;
   onSelect: (value: [number, number]) => void;
 };
 
-export default function MapView({ center, radiusKm, onSelect }: MapViewProps) {
+const selectionIcon = L.divIcon({
+  className: "selection-marker-shell",
+  html: `
+    <div class="selection-marker">
+      <span class="selection-pulse selection-pulse-outer"></span>
+      <span class="selection-pulse selection-pulse-inner"></span>
+      <span class="selection-core"></span>
+    </div>
+  `,
+  iconSize: [42, 42],
+  iconAnchor: [21, 21],
+});
+
+export default function MapView({
+  center,
+  isLoading,
+  radiusKm,
+  onSelect,
+}: MapViewProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<L.Map | null>(null);
-  const markerRef = useRef<L.CircleMarker | null>(null);
+  const markerRef = useRef<L.Marker | null>(null);
   const circleRef = useRef<L.Circle | null>(null);
+  const haloRef = useRef<L.Circle | null>(null);
+  const maskRef = useRef<L.Polygon | null>(null);
+  const boundsOutlineRef = useRef<L.Rectangle | null>(null);
+  const popupRef = useRef<L.Popup | null>(null);
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) {
@@ -23,6 +56,8 @@ export default function MapView({ center, radiusKm, onSelect }: MapViewProps) {
 
     const map = L.map(containerRef.current, {
       zoomControl: true,
+      minZoom: 5.5,
+      zoomSnap: 0.5,
     }).setView(DEFAULT_CENTER, 9);
 
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
@@ -30,8 +65,51 @@ export default function MapView({ center, radiusKm, onSelect }: MapViewProps) {
       maxZoom: 18,
     }).addTo(map);
 
+    const southWest = DATA_BOUNDS.getSouthWest();
+    const northEast = DATA_BOUNDS.getNorthEast();
+    const innerHole: L.LatLngTuple[] = [
+      [southWest.lat, southWest.lng],
+      [northEast.lat, southWest.lng],
+      [northEast.lat, northEast.lng],
+      [southWest.lat, northEast.lng],
+    ];
+
+    maskRef.current = L.polygon([WORLD_MASK, innerHole], {
+      stroke: false,
+      fillColor: "#13213f",
+      fillOpacity: 0.16,
+      interactive: false,
+      className: "map-dataset-mask",
+    }).addTo(map);
+
+    boundsOutlineRef.current = L.rectangle(DATA_BOUNDS, {
+      color: "#ff9f59",
+      weight: 1.5,
+      opacity: 0.85,
+      fillOpacity: 0,
+      dashArray: "6 6",
+      interactive: false,
+      className: "map-dataset-outline",
+    }).addTo(map);
+
+    popupRef.current = L.popup({
+      closeButton: false,
+      className: "dataset-popup",
+      offset: [0, -8],
+    });
+
     map.on("click", (event: L.LeafletMouseEvent) => {
-      onSelect([event.latlng.lat, event.latlng.lng]);
+      if (DATA_BOUNDS.contains(event.latlng)) {
+        popupRef.current?.remove();
+        onSelect([event.latlng.lat, event.latlng.lng]);
+      } else if (popupRef.current) {
+        popupRef.current
+          .setLatLng(event.latlng)
+          .setContent(
+            "<strong>Outside dataset bounds.</strong><br/>Map interaction is limited to the provided North California dataset.",
+          )
+          .openOn(map);
+      }
     });
 
     mapRef.current = map;
@@ -44,12 +122,10 @@ export default function MapView({ center, radiusKm, onSelect }: MapViewProps) {
     }
 
     if (!markerRef.current) {
-      markerRef.current = L.circleMarker(center, {
-        radius: 7,
-        color: "#0f172a",
-        weight: 2,
-        fillColor: "#f97316",
-        fillOpacity: 0.95,
+      markerRef.current = L.marker(center, {
+        icon: selectionIcon,
+        interactive: false,
+        keyboard: false,
       }).addTo(map);
     } else {
       markerRef.current.setLatLng(center);
@@ -58,16 +134,45 @@ export default function MapView({ center, radiusKm, onSelect }: MapViewProps) {
     if (!circleRef.current) {
       circleRef.current = L.circle(center, {
         radius: radiusKm * 1000,
-        color: "#f97316",
+        color: "#ff7a18",
         weight: 2,
-        fillColor: "#fdba74",
-        fillOpacity: 0.2,
+        fillColor: "#ff8d36",
+        fillOpacity: 0.12,
       }).addTo(map);
     } else {
       circleRef.current.setLatLng(center);
       circleRef.current.setRadius(radiusKm * 1000);
     }
+
+    if (!haloRef.current) {
+      haloRef.current = L.circle(center, {
+        radius: Math.max(radiusKm * 160, 650),
+        color: "#f4b06b",
+        weight: 1,
+        opacity: 0.65,
+        fillOpacity: 0,
+        interactive: false,
+      }).addTo(map);
+    } else {
+      haloRef.current.setLatLng(center);
+      haloRef.current.setRadius(Math.max(radiusKm * 160, 650));
+    }
+
+    map.flyTo(center, map.getZoom(), {
+      animate: true,
+      duration: 0.75,
+      easeLinearity: 0.2,
+    });
   }, [center, radiusKm]);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) {
+      return;
+    }
+
+    container.classList.toggle("is-computing", isLoading);
+  }, [isLoading]);
 
   return <div className="map" ref={containerRef} />;
 }

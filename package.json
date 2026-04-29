@@ -13,7 +13,7 @@
     "check": "tsc --noEmit",
     "test:python": "./.venv/bin/python -m unittest scripts/test_import_data.py scripts/test_database_smoke.py",
     "test:ts": "vitest run",
-    "test": "npm run test:python && npm run test:ts"
+    "test": "./.venv/bin/python -m unittest scripts/test_import_data.py scripts/test_database_smoke.py && vitest run"
   },
   "dependencies": {
     "leaflet": "^1.9.4",
@@ -33,7 +33,7 @@
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.3.4",
-    "jsdom": "^27.0.1",
+    "happy-dom": "^17.6.3",
     "tsx": "^4.19.2",
     "typescript": "^5.6.3",
     "vite": "^5.4.11",
