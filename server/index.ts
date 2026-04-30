@@ -143,11 +143,7 @@ export async function querySummary(lat: number, lon: number, radiusKm: number) {
 }
 
 export async function queryLocationName(lat: number, lon: number) {
-  const searchRadiusKm = 3;
-  const { latDelta, lonDelta, lonScale, radiusSquaredKm } = computeQueryWindow(
-    lat,
-    searchRadiusKm,
-  );
+  const { latDelta, lonDelta, lonScale } = computeQueryWindow(lat, 18);
 
   const sql = `
     SELECT raw_name
@@ -156,10 +152,6 @@ export async function queryLocationName(lat: number, lon: number) {
       AND TRIM(raw_name) != ''
       AND lat BETWEEN ${formatNumber(lat - latDelta)} AND ${formatNumber(lat + latDelta)}
       AND lon BETWEEN ${formatNumber(lon - lonDelta)} AND ${formatNumber(lon + lonDelta)}
-      AND (
-        ((lat - ${formatNumber(lat)}) * 111.32) * ((lat - ${formatNumber(lat)}) * 111.32) +
-        ((lon - ${formatNumber(lon)}) * ${formatNumber(lonScale)}) * ((lon - ${formatNumber(lon)}) * ${formatNumber(lonScale)})
-      ) <= ${formatNumber(radiusSquaredKm)}
     ORDER BY (
       ((lat - ${formatNumber(lat)}) * 111.32) * ((lat - ${formatNumber(lat)}) * 111.32) +
       ((lon - ${formatNumber(lon)}) * ${formatNumber(lonScale)}) * ((lon - ${formatNumber(lon)}) * ${formatNumber(lonScale)})
