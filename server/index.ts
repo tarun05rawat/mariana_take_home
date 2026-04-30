@@ -143,23 +143,55 @@ export async function querySummary(lat: number, lon: number, radiusKm: number) {
 }
 
 export async function queryLocationName(lat: number, lon: number) {
-  const { latDelta, lonDelta, lonScale } = computeQueryWindow(lat, 18);
+  const distanceExpression = (lonScale: number) => `(
+    ((lat - ${formatNumber(lat)}) * 111.32) * ((lat - ${formatNumber(lat)}) * 111.32) +
+    ((lon - ${formatNumber(lon)}) * ${formatNumber(lonScale)}) * ((lon - ${formatNumber(lon)}) * ${formatNumber(lonScale)})
+  )`;
+  const searchRadiiKm = [1.5, 3, 6, 10, 18];
 
-  const sql = `
+  for (const searchRadiusKm of searchRadiiKm) {
+    const { latDelta, lonDelta, lonScale, radiusSquaredKm } = computeQueryWindow(
+      lat,
+      searchRadiusKm,
+    );
+
+    const sql = `
+      SELECT raw_name
+      FROM transit_stops
+      WHERE raw_name IS NOT NULL
+        AND TRIM(raw_name) != ''
+        AND lat BETWEEN ${formatNumber(lat - latDelta)} AND ${formatNumber(lat + latDelta)}
+        AND lon BETWEEN ${formatNumber(lon - lonDelta)} AND ${formatNumber(lon + lonDelta)}
+        AND ${distanceExpression(lonScale)} <= ${formatNumber(radiusSquaredKm)}
+      ORDER BY ${distanceExpression(lonScale)} ASC
+      LIMIT 1;
+    `;
+
+    const { stdout } = await execFileAsync("sqlite3", ["-json", DB_PATH, sql]);
+    const rows = JSON.parse(stdout || "[]") as LocationNameRow[];
+    const rawName = cleanLocationName(rows[0]?.raw_name ?? null);
+
+    if (rawName) {
+      return {
+        locationName: `Near ${rawName}`,
+        locationNameSource: "nearest_stop" as const,
+      };
+    }
+  }
+
+  const { latDelta, lonDelta, lonScale } = computeQueryWindow(lat, 40);
+  const fallbackSql = `
     SELECT raw_name
     FROM transit_stops
     WHERE raw_name IS NOT NULL
       AND TRIM(raw_name) != ''
       AND lat BETWEEN ${formatNumber(lat - latDelta)} AND ${formatNumber(lat + latDelta)}
       AND lon BETWEEN ${formatNumber(lon - lonDelta)} AND ${formatNumber(lon + lonDelta)}
-    ORDER BY (
-      ((lat - ${formatNumber(lat)}) * 111.32) * ((lat - ${formatNumber(lat)}) * 111.32) +
-      ((lon - ${formatNumber(lon)}) * ${formatNumber(lonScale)}) * ((lon - ${formatNumber(lon)}) * ${formatNumber(lonScale)})
-    ) ASC
+    ORDER BY ${distanceExpression(lonScale)} ASC
     LIMIT 1;
   `;
 
-  const { stdout } = await execFileAsync("sqlite3", ["-json", DB_PATH, sql]);
+  const { stdout } = await execFileAsync("sqlite3", ["-json", DB_PATH, fallbackSql]);
   const rows = JSON.parse(stdout || "[]") as LocationNameRow[];
   const rawName = cleanLocationName(rows[0]?.raw_name ?? null);
 
