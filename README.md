@@ -102,6 +102,29 @@ http://127.0.0.1:5173
 5. Toggle `Compare mode` to place a second point and compare two nearby areas
 6. Use `Copy link` or `Download report` to verify the export/share workflow
 
+## Suggested Demo Walkthrough
+
+This is a compact walkthrough a reviewer can use to see the full product surface without guessing where the key features are.
+
+1. Start the app and confirm the map opens centered on the San Francisco / Northern California region.
+2. Click a point in San Francisco or Oakland and confirm:
+   - the point marker appears
+   - the analysis circle is visible
+   - the results panel updates with population and transit counts
+   - the selected area label resolves to a nearby named location when available
+3. Move the radius slider from `5 km` to `10 km` and confirm the circle grows and the counts refresh.
+4. Use `Copy link` and confirm the current point and radius are preserved in the URL.
+5. Use `Download report` and confirm a concise PDF summary is generated for the current selection.
+6. Switch to `Compare mode`, then click a second in-bounds point and confirm:
+   - a compare marker and compare circle appear
+   - the compare area name is shown
+   - the results cards render primary and compare values side by side
+   - the difference badges update for each metric
+7. In compare mode, use `Copy link` again and confirm the compare state is preserved in the URL.
+8. In compare mode, download the report again and confirm the PDF includes both areas.
+9. Click outside the highlighted dataset bounds and confirm the app shows the dataset-limit popup instead of changing the selection.
+10. Optionally drag the divider between the map and results panel on desktop to confirm the layout can be resized for exploration.
+
 ## Features In The Final App
 
 ### Core MVP
