@@ -5,3 +5,8 @@ dist/
 .DS_Store
 
 data/mariana_minerals.sqlite
+
+__pycache__/
+*.pyc
+RECOVERY_TEST.txt
+

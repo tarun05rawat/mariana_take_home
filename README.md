@@ -87,4 +87,4 @@ npm run dev:client
 - Circle inclusion uses an equirectangular approximation after an initial latitude/longitude bounding-box filter.
 - Non-point transit geometries are reduced to simple centroids.
 - The importer resolves files from the provided `Project Materials/SWE_Interns_Takehome.zip` bundle and matches members by filename so it can tolerate the top-level folder structure in the assignment archive.
-# mariana_take_home
+
