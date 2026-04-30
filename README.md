@@ -30,7 +30,30 @@ This project is a local exploratory geospatial analytics tool inspired by Tom Fo
 - Python `3.11+`
 - `sqlite3` CLI available on the shell path
 
-### Local Setup
+### Quick Setup
+
+For the easiest local setup path, you can run:
+
+```bash
+./scripts/setup.sh
+```
+
+What this script does:
+
+- checks for `node`, `npm`, `python3`, and `sqlite3`
+- attempts Homebrew installs on macOS when a required tool is missing
+- runs `npm install`
+- creates `.venv`
+- installs Python dependencies from `requirements.txt`
+
+After the script finishes:
+
+```bash
+npm run import-data
+npm run dev
+```
+
+### Manual Setup
 
 1. Install frontend dependencies:
 
@@ -68,6 +91,7 @@ http://127.0.0.1:5173
 - The SQLite database is intentionally not committed. The repo includes a reproducible importer, and `npm run import-data` rebuilds the local database from the provided files.
 - The importer reads from `Project Materials/SWE_Interns_Takehome.zip` and matches archive members by filename so the rebuild path is robust to the source folder structure inside the archive.
 - The app is designed to run entirely locally. No hosted backend or external data service is required.
+- On macOS, if system dependencies are missing and Homebrew is available, `./scripts/setup.sh` will attempt to install them automatically.
 
 ## Core Reviewer Flow
 
