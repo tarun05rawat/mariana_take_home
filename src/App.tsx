@@ -195,7 +195,7 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [reportFeedback, setReportFeedback] = useState<string | null>(null);
   const [linkFeedback, setLinkFeedback] = useState<string | null>(null);
-  const [splitLeftPercent, setSplitLeftPercent] = useState(70);
+  const [splitLeftPercent, setSplitLeftPercent] = useState(58);
   const contentGridRef = useRef<HTMLElement | null>(null);
 
   const focusCenter =
@@ -504,107 +504,121 @@ export default function App() {
               <p>SQLite-backed summaries and simplified inclusion math keep the workflow immediate enough for exploratory analysis.</p>
             </div>
           </div>
-        </div>
-
-        <div className="controls-card">
-          <div className="controls-header">
-            <div>
-              <p className="controls-title">Search radius</p>
-              <p className="controls-subtitle">
-                Shape the coverage area around the current point.
-              </p>
-            </div>
-            <div className="radius-badge">
-              <span>Radius:</span>
-              <strong>{radiusKm} km</strong>
-            </div>
-          </div>
-
-          <div className="compare-toggle-group" role="tablist" aria-label="Selection mode">
-            <button
-              className={`compare-toggle ${!compareMode ? "is-active" : ""}`}
-              onClick={() => setCompareMode(false)}
-              type="button"
-            >
-              Single point
-            </button>
-            <button
-              className={`compare-toggle ${compareMode ? "is-active" : ""}`}
-              onClick={() => {
-                setCompareMode(true);
-                setSelectionTarget("compare");
-              }}
-              type="button"
-            >
-              Compare mode
-            </button>
-          </div>
-
-          {compareMode ? (
-            <div className="compare-target-row">
-              <button
-                className={`compare-target ${selectionTarget === "primary" ? "is-active" : ""}`}
-                onClick={() => setSelectionTarget("primary")}
-                type="button"
-              >
-                Editing primary area
-              </button>
-              <button
-                className={`compare-target ${selectionTarget === "compare" ? "is-active" : ""}`}
-                onClick={() => setSelectionTarget("compare")}
-                type="button"
-              >
-                {compareCenter ? "Editing compare area" : "Set compare area"}
-              </button>
-            </div>
-          ) : null}
-
-          <div
-            className="slider-shell"
-            style={{ "--slider-progress": `${sliderProgress}%` } as CSSProperties}
-          >
-            <label className="slider-label" htmlFor="radius">
-              Radius: {radiusKm} km
-            </label>
-            <input
-              aria-label={`Radius: ${radiusKm} km`}
-              id="radius"
-              max={MAX_RADIUS}
-              min={MIN_RADIUS}
-              onChange={(event) => setRadiusKm(Number(event.target.value))}
-              type="range"
-              value={radiusKm}
-            />
-            <div className="slider-scale" aria-hidden="true">
-              <span>{MIN_RADIUS} km</span>
-              <span>{MAX_RADIUS} km</span>
-            </div>
-          </div>
-
-          <div className={`control-meta ${compareMode ? "is-compare" : ""}`}>
-            <div className="meta-tile meta-tile-full">
-              <span className="meta-label">Primary area</span>
-              <strong>{primaryLabel}</strong>
-              <span className="meta-detail">{formatCoords(center)}</span>
-            </div>
-            {compareMode ? (
-              <div className="meta-tile meta-tile-full">
-                <span className="meta-label">Compare area</span>
-                <strong>{compareCenter ? compareLabel : "Click the map to place it"}</strong>
-                <span className="meta-detail">
-                  {compareCenter ? formatCoords(compareCenter) : "Waiting for selection"}
-                </span>
-              </div>
-            ) : null}
-          </div>
-
           {compareMode && !compareCenter && selectionTarget === "compare" ? (
-            <div className="status-banner compare-hint" role="status">
+            <div className="status-banner hero-status-banner" role="status">
               <span className="status-spinner" aria-hidden="true" />
               <span>Next in-bounds map click will place the compare area.</span>
             </div>
           ) : null}
-          {error ? <p className="status-text error-text">{error}</p> : null}
+        </div>
+
+        <div className="controls-card">
+          <div className="controls-main">
+            <div className="controls-header">
+              <div>
+                <p className="controls-title">Search radius</p>
+                <p className="controls-subtitle">
+                  Shape the coverage area around the current point.
+                </p>
+              </div>
+              <div className="radius-badge">
+                <span>Radius:</span>
+                <strong>{radiusKm} km</strong>
+              </div>
+            </div>
+
+            <div className="compare-toggle-group" role="tablist" aria-label="Selection mode">
+              <button
+                className={`compare-toggle ${!compareMode ? "is-active" : ""}`}
+                onClick={() => setCompareMode(false)}
+                type="button"
+              >
+                Single point
+              </button>
+              <button
+                className={`compare-toggle ${compareMode ? "is-active" : ""}`}
+                onClick={() => {
+                  setCompareMode(true);
+                  setSelectionTarget("compare");
+                }}
+                type="button"
+              >
+                Compare mode
+              </button>
+            </div>
+
+            {compareMode ? (
+              <div className="compare-target-row">
+                <button
+                  className={`compare-target ${selectionTarget === "primary" ? "is-active" : ""}`}
+                  onClick={() => setSelectionTarget("primary")}
+                  type="button"
+                >
+                  Editing primary area
+                </button>
+                <button
+                  className={`compare-target ${selectionTarget === "compare" ? "is-active" : ""}`}
+                  onClick={() => setSelectionTarget("compare")}
+                  type="button"
+                >
+                  {compareCenter ? "Editing compare area" : "Set compare area"}
+                </button>
+              </div>
+            ) : null}
+
+            <div
+              className="slider-shell"
+              style={{ "--slider-progress": `${sliderProgress}%` } as CSSProperties}
+            >
+              <label className="slider-label" htmlFor="radius">
+                Radius: {radiusKm} km
+              </label>
+              <input
+                aria-label={`Radius: ${radiusKm} km`}
+                id="radius"
+                max={MAX_RADIUS}
+                min={MIN_RADIUS}
+                onChange={(event) => setRadiusKm(Number(event.target.value))}
+                type="range"
+                value={radiusKm}
+              />
+              <div className="slider-scale" aria-hidden="true">
+                <span>{MIN_RADIUS} km</span>
+                <span>{MAX_RADIUS} km</span>
+              </div>
+            </div>
+
+            <div className={`control-meta ${compareMode ? "is-compare" : ""}`}>
+              <div className="meta-tile meta-tile-full">
+                <span className="meta-label">Primary area</span>
+                <strong>{primaryLabel}</strong>
+                <span className="meta-detail">{formatCoords(center)}</span>
+              </div>
+              {compareMode ? (
+                <div className="meta-tile meta-tile-full">
+                  <span className="meta-label">Compare area</span>
+                  <strong>{compareCenter ? compareLabel : "Click the map to place it"}</strong>
+                  <span className="meta-detail">
+                    {compareCenter ? formatCoords(compareCenter) : "Waiting for selection"}
+                  </span>
+                </div>
+              ) : null}
+            </div>
+
+            {error ? <p className="status-text error-text">{error}</p> : null}
+          </div>
+
+          <div className="controls-footer">
+            <div className="controls-footer-card">
+              <span className="controls-footer-label">Current analysis</span>
+              <strong>{compareMode ? "Two-area comparison" : "Single-area summary"}</strong>
+              <p>
+                {compareMode
+                  ? "Both circles use the same radius so the result cards stay directly comparable while you compare nearby population and transit access side by side."
+                  : "The results panel updates immediately as you move the point or adjust the radius."}
+              </p>
+            </div>
+          </div>
         </div>
       </section>
 
