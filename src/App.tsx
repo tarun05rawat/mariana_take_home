@@ -356,6 +356,7 @@ export default function App() {
       lines: [
         "Population is estimated from aggregated raster cells from the provided GeoTIFF.",
         "Transit categories are derived heuristically from the provided Northern California stop export.",
+        "These figures are intended for exploratory analysis and quick comparison, not precise geospatial reporting.",
         `Share URL: ${getShareUrl()}`,
       ],
     });
@@ -647,9 +648,11 @@ export default function App() {
                     <span className="result-sublabel">{card.sublabel}</span>
                   </div>
                 </div>
-                <strong>
-                  <AnimatedNumber value={card.primaryValue} />
-                </strong>
+                {!compareMode ? (
+                  <strong>
+                    <AnimatedNumber value={card.primaryValue} />
+                  </strong>
+                ) : null}
                 {compareMode ? (
                   <div className="compare-metric-grid">
                     <div className="compare-metric-cell is-primary">

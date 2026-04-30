@@ -59,16 +59,20 @@ function measureSectionHeight(section: ReportSection) {
   for (const rawLine of section.lines) {
     const pair = splitLabelValue(rawLine);
     if (pair) {
-      const wrappedValue = wrapText(pair.value, 58);
+      if (pair.label === "Share URL:") {
+        lineUnits += 1 + Math.max(wrapText(pair.value, 68).length, 1);
+        continue;
+      }
+      const wrappedValue = wrapText(pair.value, 48);
       lineUnits += Math.max(wrappedValue.length, 1);
       continue;
     }
 
-    lineUnits += Math.max(wrapText(rawLine, 76).length, 1);
+    lineUnits += Math.max(wrapText(rawLine, 68).length, 1);
   }
 
   return {
-    height: 54 + lineUnits * 17,
+    height: 62 + lineUnits * 18,
     lineUnits,
   };
 }
@@ -116,7 +120,7 @@ export function buildPdfReport(payload: ReportPayload) {
   addText(payload.subtitle, 54, 718, 11, "italic");
   addText("Mariana Minerals Take-Home", 54, 774, 9, "regular");
 
-  y = 664;
+  y = 660;
 
   for (const section of payload.sections) {
     const { height } = measureSectionHeight(section);
@@ -128,30 +132,40 @@ export function buildPdfReport(payload: ReportPayload) {
 
     setFillColor(0.11, 0.18, 0.32);
     addText(section.heading, 58, y, 13, "bold");
-    y -= 24;
+    y -= 30;
 
     for (const rawLine of section.lines) {
       const pair = splitLabelValue(rawLine);
 
       if (pair) {
-        const wrappedValue = wrapText(pair.value, 58);
+        if (pair.label === "Share URL:") {
+          addText(pair.label, 58, y, 10.5, "bold");
+          y -= 18;
+          for (const line of wrapText(pair.value, 68)) {
+            addText(line, 58, y, 10.5, "regular");
+            y -= 18;
+          }
+          continue;
+        }
+
+        const wrappedValue = wrapText(pair.value, 48);
         addText(pair.label, 58, y, 10.5, "bold");
-        addText(wrappedValue[0] ?? "", 138, y, 10.5, "regular");
-        y -= 17;
+        addText(wrappedValue[0] ?? "", 180, y, 10.5, "regular");
+        y -= 18;
 
         for (const continuation of wrappedValue.slice(1)) {
-          addText(continuation, 138, y, 10.5, "regular");
-          y -= 17;
+          addText(continuation, 180, y, 10.5, "regular");
+          y -= 18;
         }
       } else {
-        for (const line of wrapText(rawLine, 76)) {
+        for (const line of wrapText(rawLine, 68)) {
           addText(line, 58, y, 10.5, "regular");
-          y -= 17;
+          y -= 18;
         }
       }
     }
 
-    y -= 20;
+    y -= 22;
   }
 
   setStrokeColor(0.82, 0.85, 0.9);
