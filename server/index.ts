@@ -21,6 +21,37 @@ type SummaryRow = {
   trainMetroStops: number | string;
 };
 
+type LocationNameRow = {
+  raw_name: string | null;
+};
+
+function cleanLocationName(rawName: string | null) {
+  if (!rawName) {
+    return null;
+  }
+
+  const trimmed = rawName.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  if (!trimmed.startsWith("{")) {
+    return trimmed;
+  }
+
+  const primaryMatch = trimmed.match(/'primary':\s*'([^']+)'/);
+  if (primaryMatch?.[1]) {
+    return primaryMatch[1].trim();
+  }
+
+  const valueMatch = trimmed.match(/'value':\s*'([^']+)'/);
+  if (valueMatch?.[1]) {
+    return valueMatch[1].trim();
+  }
+
+  return null;
+}
+
 function sendJson(
   response: import("node:http").ServerResponse,
   statusCode: number,
@@ -111,6 +142,48 @@ export async function querySummary(lat: number, lon: number, radiusKm: number) {
   };
 }
 
+export async function queryLocationName(lat: number, lon: number) {
+  const searchRadiusKm = 3;
+  const { latDelta, lonDelta, lonScale, radiusSquaredKm } = computeQueryWindow(
+    lat,
+    searchRadiusKm,
+  );
+
+  const sql = `
+    SELECT raw_name
+    FROM transit_stops
+    WHERE raw_name IS NOT NULL
+      AND TRIM(raw_name) != ''
+      AND lat BETWEEN ${formatNumber(lat - latDelta)} AND ${formatNumber(lat + latDelta)}
+      AND lon BETWEEN ${formatNumber(lon - lonDelta)} AND ${formatNumber(lon + lonDelta)}
+      AND (
+        ((lat - ${formatNumber(lat)}) * 111.32) * ((lat - ${formatNumber(lat)}) * 111.32) +
+        ((lon - ${formatNumber(lon)}) * ${formatNumber(lonScale)}) * ((lon - ${formatNumber(lon)}) * ${formatNumber(lonScale)})
+      ) <= ${formatNumber(radiusSquaredKm)}
+    ORDER BY (
+      ((lat - ${formatNumber(lat)}) * 111.32) * ((lat - ${formatNumber(lat)}) * 111.32) +
+      ((lon - ${formatNumber(lon)}) * ${formatNumber(lonScale)}) * ((lon - ${formatNumber(lon)}) * ${formatNumber(lonScale)})
+    ) ASC
+    LIMIT 1;
+  `;
+
+  const { stdout } = await execFileAsync("sqlite3", ["-json", DB_PATH, sql]);
+  const rows = JSON.parse(stdout || "[]") as LocationNameRow[];
+  const rawName = cleanLocationName(rows[0]?.raw_name ?? null);
+
+  if (rawName) {
+    return {
+      locationName: `Near ${rawName}`,
+      locationNameSource: "nearest_stop" as const,
+    };
+  }
+
+  return {
+    locationName: "Selected area",
+    locationNameSource: "fallback" as const,
+  };
+}
+
 export async function requestListener(
   request: IncomingMessage,
   response: ServerResponse<IncomingMessage>,
@@ -169,8 +242,14 @@ export async function requestListener(
   }
 
   try {
-    const payload = await querySummary(lat, lon, radiusKm);
-    sendJson(response, 200, payload);
+    const [payload, labelPayload] = await Promise.all([
+      querySummary(lat, lon, radiusKm),
+      queryLocationName(lat, lon),
+    ]);
+    sendJson(response, 200, {
+      ...payload,
+      ...labelPayload,
+    });
   } catch (error) {
     sendJson(response, 500, {
       error: error instanceof Error ? error.message : "Unexpected server error.",

@@ -3,10 +3,7 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
 const DEFAULT_CENTER: [number, number] = [37.7749, -122.4194];
-const DATA_BOUNDS = L.latLngBounds(
-  [36.85, -123.35],
-  [38.72, -121.2],
-);
+const DATA_BOUNDS = L.latLngBounds([36.85, -123.35], [38.72, -121.2]);
 const WORLD_MASK: L.LatLngTuple[] = [
   [85, -180],
   [85, 180],
@@ -14,14 +11,18 @@ const WORLD_MASK: L.LatLngTuple[] = [
   [-85, -180],
 ];
 
+type Point = [number, number];
+
 type MapViewProps = {
-  center: [number, number];
+  center: Point;
+  compareCenter: Point | null;
+  focusCenter: Point;
   isLoading: boolean;
   radiusKm: number;
-  onSelect: (value: [number, number]) => void;
+  onSelect: (value: Point) => void;
 };
 
-const selectionIcon = L.divIcon({
+const primarySelectionIcon = L.divIcon({
   className: "selection-marker-shell",
   html: `
     <div class="selection-marker">
@@ -34,8 +35,23 @@ const selectionIcon = L.divIcon({
   iconAnchor: [21, 21],
 });
 
+const compareSelectionIcon = L.divIcon({
+  className: "selection-marker-shell selection-marker-shell-compare",
+  html: `
+    <div class="selection-marker selection-marker-compare">
+      <span class="selection-pulse selection-pulse-outer selection-pulse-outer-compare"></span>
+      <span class="selection-pulse selection-pulse-inner selection-pulse-inner-compare"></span>
+      <span class="selection-core selection-core-compare"></span>
+    </div>
+  `,
+  iconSize: [42, 42],
+  iconAnchor: [21, 21],
+});
+
 export default function MapView({
   center,
+  compareCenter,
+  focusCenter,
   isLoading,
   radiusKm,
   onSelect,
@@ -43,11 +59,18 @@ export default function MapView({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<L.Map | null>(null);
   const markerRef = useRef<L.Marker | null>(null);
+  const compareMarkerRef = useRef<L.Marker | null>(null);
   const circleRef = useRef<L.Circle | null>(null);
+  const compareCircleRef = useRef<L.Circle | null>(null);
   const haloRef = useRef<L.Circle | null>(null);
   const maskRef = useRef<L.Polygon | null>(null);
   const boundsOutlineRef = useRef<L.Rectangle | null>(null);
   const popupRef = useRef<L.Popup | null>(null);
+  const onSelectRef = useRef(onSelect);
+
+  useEffect(() => {
+    onSelectRef.current = onSelect;
+  }, [onSelect]);
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) {
@@ -101,7 +124,7 @@ export default function MapView({
     map.on("click", (event: L.LeafletMouseEvent) => {
       if (DATA_BOUNDS.contains(event.latlng)) {
         popupRef.current?.remove();
-        onSelect([event.latlng.lat, event.latlng.lng]);
+        onSelectRef.current([event.latlng.lat, event.latlng.lng]);
       } else if (popupRef.current) {
         popupRef.current
           .setLatLng(event.latlng)
@@ -113,7 +136,7 @@ export default function MapView({
     });
 
     mapRef.current = map;
-  }, [onSelect]);
+  }, []);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -123,7 +146,7 @@ export default function MapView({
 
     if (!markerRef.current) {
       markerRef.current = L.marker(center, {
-        icon: selectionIcon,
+        icon: primarySelectionIcon,
         interactive: false,
         keyboard: false,
       }).addTo(map);
@@ -158,12 +181,50 @@ export default function MapView({
       haloRef.current.setRadius(Math.max(radiusKm * 160, 650));
     }
 
-    map.flyTo(center, map.getZoom(), {
+    if (compareCenter) {
+      if (!compareMarkerRef.current) {
+        compareMarkerRef.current = L.marker(compareCenter, {
+          icon: compareSelectionIcon,
+          interactive: false,
+          keyboard: false,
+        }).addTo(map);
+      } else {
+        compareMarkerRef.current.setLatLng(compareCenter);
+      }
+
+      if (!compareCircleRef.current) {
+        compareCircleRef.current = L.circle(compareCenter, {
+          radius: radiusKm * 1000,
+          color: "#6c7dff",
+          weight: 2,
+          fillColor: "#8a96ff",
+          fillOpacity: 0.08,
+          dashArray: "8 8",
+        }).addTo(map);
+      } else {
+        compareCircleRef.current.setLatLng(compareCenter);
+        compareCircleRef.current.setRadius(radiusKm * 1000);
+      }
+    } else {
+      compareMarkerRef.current?.remove();
+      compareMarkerRef.current = null;
+      compareCircleRef.current?.remove();
+      compareCircleRef.current = null;
+    }
+  }, [center, compareCenter, radiusKm]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) {
+      return;
+    }
+
+    map.flyTo(focusCenter, map.getZoom(), {
       animate: true,
       duration: 0.75,
       easeLinearity: 0.2,
     });
-  }, [center, radiusKm]);
+  }, [focusCenter]);
 
   useEffect(() => {
     const container = containerRef.current;

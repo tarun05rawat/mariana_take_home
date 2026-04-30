@@ -61,6 +61,13 @@ The SSD copy initially lost most source files during transfer. This workspace ha
   - default 5 km state
   - map click updating the selected point
   - results panel refreshing with new stop counts after a map click
+- The frontend now also includes:
+  - shareable URL state for primary point, radius, and compare mode
+  - compare mode with primary vs compare point summaries
+  - skeleton loading treatments in metric cards
+  - downloadable PDF reports for single-point and compare mode
+  - a copy-link action beside the report export
+  - human-friendly area labels inferred from the nearest named transit stop in the provided local dataset
 
 ## Automated Test Coverage
 
@@ -75,16 +82,27 @@ The SSD copy initially lost most source files during transfer. This workspace ha
   - frontend initial fetch and rendering of returned metrics
   - frontend slider-driven refetch behavior
   - frontend map-click-driven refetch behavior
+  - frontend URL hydration for point, radius, and compare state
+  - invalid compare URL state falling back to single-point mode
+  - frontend compare-mode fetch behavior and delta rendering
+  - frontend PDF download behavior
+  - frontend copy-link behavior
   - frontend error state when the summary request fails
 
 ## Known Gaps
 
+- TypeScript-only validation still works through direct `tsc`, but `vitest` / Vite-based commands can fail inside the Codex shell on this external drive because Rollup's native module trips a macOS code-signature / optional-dependency issue. The user's local terminal remains the source of truth for full `npm test` / `npm run build` verification.
 - The in-app browser automation could not conclusively validate the native slider end to end, but the slider state transition is now covered in a frontend test and still merits one quick manual browser smoke test before submission.
 - There is no dedicated automated API test yet for `/api/summary`; only manual curl checks and browser validation have been done.
 
 ## Immediate Next Steps
 
-- Do one final manual browser sanity check of the slider in a standard local browser session.
+- Do one final manual browser sanity check of:
+  - shareable URL updates while moving the slider or clicking the map
+  - compare mode placement and compare result refresh
+  - PDF report download behavior in both single and compare mode
+  - copy-link behavior
+  - nearest-stop area labeling quality on a few representative map clicks
 - Decide whether to keep the built SQLite file in the submission or exclude it and rely on the documented importer path.
 - Do a final README pass focused on the reviewer journey:
   - install deps

@@ -3,4 +3,6 @@ export type QueryResponse = {
   busStops: number;
   tramStops: number;
   trainMetroStops: number;
+  locationName?: string;
+  locationNameSource?: "nearest_stop" | "fallback";
 };
