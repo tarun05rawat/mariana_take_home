@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import MapView from "./components/MapView";
 import type { QueryResponse } from "./types";
 import { buildPdfReport } from "./utils/reportPdf";
@@ -195,6 +195,8 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [reportFeedback, setReportFeedback] = useState<string | null>(null);
   const [linkFeedback, setLinkFeedback] = useState<string | null>(null);
+  const [splitLeftPercent, setSplitLeftPercent] = useState(70);
+  const contentGridRef = useRef<HTMLElement | null>(null);
 
   const focusCenter =
     compareMode && selectionTarget === "compare" && compareCenter ? compareCenter : center;
@@ -283,6 +285,45 @@ export default function App() {
       window.clearTimeout(timeout);
     };
   }, [reportFeedback, linkFeedback]);
+
+  useEffect(() => {
+    function stopDragging() {
+      document.body.classList.remove("is-resizing-panels");
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", stopDragging);
+    }
+
+    function handlePointerMove(event: PointerEvent) {
+      const grid = contentGridRef.current;
+      if (!grid) {
+        return;
+      }
+
+      const bounds = grid.getBoundingClientRect();
+      const nextPercent = ((event.clientX - bounds.left) / bounds.width) * 100;
+      const clamped = Math.min(78, Math.max(52, nextPercent));
+      setSplitLeftPercent(clamped);
+    }
+
+    const startDragging = (event: PointerEvent) => {
+      if (window.innerWidth <= 1180) {
+        return;
+      }
+
+      event.preventDefault();
+      document.body.classList.add("is-resizing-panels");
+      window.addEventListener("pointermove", handlePointerMove);
+      window.addEventListener("pointerup", stopDragging, { once: true });
+    };
+
+    const handle = document.getElementById("panel-resize-handle");
+    handle?.addEventListener("pointerdown", startDragging);
+
+    return () => {
+      handle?.removeEventListener("pointerdown", startDragging);
+      stopDragging();
+    };
+  }, []);
 
   function handleMapSelect(point: Point) {
     if (compareMode && selectionTarget === "compare") {
@@ -453,6 +494,16 @@ export default function App() {
             <div className="highlight-chip">Approximate circle query</div>
             <div className="highlight-chip">Shareable URL state</div>
           </div>
+          <div className="hero-brief">
+            <div className="hero-brief-card">
+              <span className="hero-brief-label">What this tool gives you</span>
+              <p>Click a point, choose a radius, and compare plausible population and transit access without leaving the map.</p>
+            </div>
+            <div className="hero-brief-card">
+              <span className="hero-brief-label">Why it feels fast</span>
+              <p>SQLite-backed summaries and simplified inclusion math keep the workflow immediate enough for exploratory analysis.</p>
+            </div>
+          </div>
         </div>
 
         <div className="controls-card">
@@ -557,7 +608,11 @@ export default function App() {
         </div>
       </section>
 
-      <section className="content-grid">
+      <section
+        className="content-grid"
+        ref={contentGridRef}
+        style={{ "--split-left": `${splitLeftPercent}%` } as CSSProperties}
+      >
         <div className="map-card">
           <div className="map-card-header">
             <div>
@@ -613,6 +668,17 @@ export default function App() {
               </div>
             ) : null}
           </div>
+        </div>
+
+        <div
+          aria-label="Resize map and results panels"
+          className="panel-resize-handle"
+          id="panel-resize-handle"
+          role="separator"
+          aria-orientation="vertical"
+          tabIndex={0}
+        >
+          <span className="panel-resize-handle-line" aria-hidden="true" />
         </div>
 
         <aside className="results-panel">

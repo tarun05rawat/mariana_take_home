@@ -36,6 +36,11 @@ body {
   color: var(--ink);
 }
 
+body.is-resizing-panels {
+  cursor: col-resize;
+  user-select: none;
+}
+
 button,
 input {
   font: inherit;
@@ -150,15 +155,21 @@ h3 {
 
 .hero {
   display: grid;
-  grid-template-columns: minmax(0, 1.62fr) minmax(320px, 378px);
-  gap: 20px;
+  grid-template-columns: minmax(0, 1.45fr) minmax(340px, 390px);
+  gap: 24px;
   align-items: start;
   margin-bottom: 22px;
 }
 
 .hero-copy {
   display: grid;
-  gap: 22px;
+  gap: 20px;
+  padding: 28px 30px 30px;
+  border-radius: 32px;
+  background: rgba(255, 255, 255, 0.42);
+  border: 1px solid rgba(22, 33, 62, 0.08);
+  box-shadow: var(--shadow-soft);
+  backdrop-filter: blur(10px);
 }
 
 .headline-wrap {
@@ -167,7 +178,7 @@ h3 {
 }
 
 .intro {
-  max-width: 64ch;
+  max-width: 58ch;
   margin: 0;
   color: var(--text-muted);
   font-size: 1rem;
@@ -187,6 +198,36 @@ h3 {
   border: 1px solid rgba(22, 33, 62, 0.08);
   box-shadow: var(--shadow-soft);
   font-size: 0.84rem;
+}
+
+.hero-brief {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.hero-brief-card {
+  padding: 16px 16px 18px;
+  border-radius: 20px;
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.8), rgba(247, 250, 255, 0.72));
+  border: 1px solid rgba(22, 33, 62, 0.08);
+}
+
+.hero-brief-label {
+  display: inline-block;
+  margin-bottom: 8px;
+  color: #c56316;
+  font-size: 0.74rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.hero-brief-card p {
+  margin: 0;
+  color: #30486d;
+  font-size: 0.92rem;
+  line-height: 1.55;
 }
 
 .controls-card {
@@ -473,9 +514,34 @@ input[type="range"]:focus-visible::-webkit-slider-thumb {
 
 .content-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.78fr) minmax(320px, 378px);
+  grid-template-columns: minmax(0, var(--split-left, 70%)) 14px minmax(320px, 1fr);
   gap: 24px;
   align-items: stretch;
+}
+
+.panel-resize-handle {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: col-resize;
+}
+
+.panel-resize-handle-line {
+  width: 6px;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(255, 122, 24, 0.18), rgba(91, 118, 198, 0.18));
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.7),
+    0 0 0 1px rgba(22, 33, 62, 0.05);
+  transition: background 180ms ease, transform 180ms ease;
+}
+
+.panel-resize-handle:hover .panel-resize-handle-line,
+.panel-resize-handle:focus-visible .panel-resize-handle-line {
+  background: linear-gradient(180deg, rgba(255, 122, 24, 0.35), rgba(91, 118, 198, 0.35));
+  transform: scaleX(1.08);
 }
 
 .map-card {
@@ -504,6 +570,7 @@ input[type="range"]:focus-visible::-webkit-slider-thumb {
   display: flex;
   flex: 1;
   min-height: 0;
+  overflow: hidden;
   padding: 12px;
   border-radius: 24px;
   background: linear-gradient(145deg, rgba(255, 255, 255, 0.84), rgba(246, 250, 255, 0.74));
@@ -558,7 +625,7 @@ input[type="range"]:focus-visible::-webkit-slider-thumb {
 }
 
 .map .leaflet-control-attribution {
-  background: rgba(255, 255, 255, 0.74);
+  background: rgba(255, 255, 255, 0.42);
   border-radius: 10px 0 0 0;
   backdrop-filter: blur(12px);
 }
@@ -653,7 +720,8 @@ input[type="range"]:focus-visible::-webkit-slider-thumb {
 }
 
 .map-overlay-bottom {
-  bottom: 22px;
+  bottom: 18px;
+  align-items: flex-end;
 }
 
 .overlay-chip {
@@ -669,7 +737,8 @@ input[type="range"]:focus-visible::-webkit-slider-thumb {
   padding: 11px 13px;
   border-radius: 16px;
   min-width: 164px;
-  background: rgba(255, 255, 255, 0.82);
+  max-width: min(320px, calc(50% - 12px));
+  background: rgba(255, 255, 255, 0.92);
   box-shadow: var(--shadow-soft);
 }
 
@@ -685,6 +754,8 @@ input[type="range"]:focus-visible::-webkit-slider-thumb {
   display: block;
   margin-top: 4px;
   font-size: 0.96rem;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
 }
 
 .map-loading-scrim {
@@ -1073,9 +1144,25 @@ input[type="range"]:focus-visible::-webkit-slider-thumb {
     gap: 24px;
   }
 
+  .hero-copy {
+    padding: 0;
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+    backdrop-filter: none;
+  }
+
   h1,
   .hero h2 {
     max-width: none;
+  }
+
+  .hero-brief {
+    grid-template-columns: 1fr;
+  }
+
+  .panel-resize-handle {
+    display: none;
   }
 
   .notes-strip {
@@ -1109,6 +1196,7 @@ input[type="range"]:focus-visible::-webkit-slider-thumb {
   .map-overlay-bottom {
     flex-direction: column;
     align-items: flex-start;
+    bottom: 18px;
   }
 
   .compare-toggle-group,
