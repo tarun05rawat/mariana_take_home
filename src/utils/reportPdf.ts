@@ -11,13 +11,33 @@ type ReportPayload = {
 };
 
 type FontKey = "regular" | "bold" | "italic";
+type LinkAnnotation = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  url: string;
+};
 
 function escapePdfText(input: string) {
   return input.replace(/\\/g, "\\\\").replace(/\(/g, "\\(").replace(/\)/g, "\\)");
 }
 
 function wrapText(text: string, maxChars: number) {
-  const words = text.split(/\s+/).filter(Boolean);
+  const rawWords = text.split(/\s+/).filter(Boolean);
+  const words: string[] = [];
+
+  for (const rawWord of rawWords) {
+    if (rawWord.length <= maxChars) {
+      words.push(rawWord);
+      continue;
+    }
+
+    for (let index = 0; index < rawWord.length; index += maxChars) {
+      words.push(rawWord.slice(index, index + maxChars));
+    }
+  }
+
   const lines: string[] = [];
   let current = "";
 
@@ -79,6 +99,7 @@ function measureSectionHeight(section: ReportSection) {
 
 export function buildPdfReport(payload: ReportPayload) {
   const commands: string[] = [];
+  const linkAnnotations: LinkAnnotation[] = [];
   let y = 792;
 
   function addCommand(command: string) {
@@ -107,6 +128,17 @@ export function buildPdfReport(payload: ReportPayload) {
     addCommand(
       `BT /${fontRef} ${size} Tf 1 0 0 1 ${x} ${baselineY} Tm (${escapePdfText(text)}) Tj ET`,
     );
+  }
+
+  function addLinkAnnotation(text: string, x: number, baselineY: number, size: number, url: string) {
+    const approxWidth = Math.max(text.length * (size * 0.53), 24);
+    linkAnnotations.push({
+      x,
+      y: baselineY - 3,
+      width: approxWidth,
+      height: size + 6,
+      url,
+    });
   }
 
   setFillColor(0.95, 0.96, 0.98);
@@ -143,6 +175,7 @@ export function buildPdfReport(payload: ReportPayload) {
           y -= 18;
           for (const line of wrapText(pair.value, 68)) {
             addText(line, 58, y, 10.5, "regular");
+            addLinkAnnotation(line, 58, y, 10.5, pair.value);
             y -= 18;
           }
           continue;
@@ -174,14 +207,26 @@ export function buildPdfReport(payload: ReportPayload) {
   addText(payload.footer, 54, 44, 9, "regular");
 
   const contentStream = commands.join("\n");
+  const annotationObjectNumbers = linkAnnotations.map((_, index) => 8 + index);
+  const annotsRef =
+    annotationObjectNumbers.length > 0
+      ? `/Annots [${annotationObjectNumbers.map((value) => `${value} 0 R`).join(" ")}] `
+      : "";
+
   const objects = [
     "<< /Type /Catalog /Pages 2 0 R >>",
     "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
-    "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R /F2 6 0 R /F3 7 0 R >> >> >>",
+    `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] ${annotsRef}/Contents 4 0 R /Resources << /Font << /F1 5 0 R /F2 6 0 R /F3 7 0 R >> >> >>`,
     `<< /Length ${contentStream.length} >>\nstream\n${contentStream}\nendstream`,
     "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
     "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>",
     "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Oblique >>",
+    ...linkAnnotations.map(
+      (annotation) =>
+        `<< /Type /Annot /Subtype /Link /Border [0 0 0] /Rect [${annotation.x} ${annotation.y} ${
+          annotation.x + annotation.width
+        } ${annotation.y + annotation.height}] /A << /S /URI /URI (${escapePdfText(annotation.url)}) >> >>`,
+    ),
   ];
 
   let pdf = "%PDF-1.4\n";
