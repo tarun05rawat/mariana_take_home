@@ -93,6 +93,34 @@ http://127.0.0.1:5173
 - The app is designed to run entirely locally. No hosted backend or external data service is required.
 - On macOS, if system dependencies are missing and Homebrew is available, `./scripts/setup.sh` will attempt to install them automatically.
 
+## Hosted Deployment
+
+If you want to share a live link instead of asking a reviewer to run the app locally, the easiest deployment path for this repo is a single Docker-backed web service. The current repo now supports that pattern:
+
+- the frontend is built into `dist/`
+- the Node server serves both the API and the static frontend
+- the SQLite database is generated during the image build from the provided project materials
+- the server binds to `PORT` and `0.0.0.0` in production
+
+### Recommended Option: Render
+
+Render's web service docs explicitly require apps to bind to host `0.0.0.0` and the `PORT` environment variable, which this repo now supports.
+
+Official docs:
+- [Render Web Services](https://render.com/docs/web-services)
+- [Render Docker Deploys](https://render.com/docs/docker)
+
+### Render Deployment Steps
+
+1. Push the latest repo changes to GitHub.
+2. In Render, create a new `Web Service`.
+3. Connect the GitHub repository.
+4. Select `Docker` as the runtime.
+5. Deploy the service from the repo root using the included `Dockerfile`.
+6. Once the build finishes, Render will provide a public `onrender.com` URL that serves both the frontend and backend.
+
+No separate frontend deployment, reverse proxy, or external database is required for this setup.
+
 ## Core Reviewer Flow
 
 1. Open the app at `http://127.0.0.1:5173`

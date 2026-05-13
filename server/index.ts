@@ -6,13 +6,28 @@ import {
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { existsSync } from "node:fs";
-import { resolve } from "node:path";
+import { readFile } from "node:fs/promises";
+import { extname, resolve } from "node:path";
 import { computeQueryWindow } from "./queryMath";
 
 const execFileAsync = promisify(execFile);
-const PORT = 8787;
-const HOST = "127.0.0.1";
+const PORT = Number(process.env.PORT ?? 8787);
+const HOST =
+  process.env.HOST ?? (process.env.NODE_ENV === "production" ? "0.0.0.0" : "127.0.0.1");
 export const DB_PATH = resolve(process.cwd(), "data", "mariana_minerals.sqlite");
+const DIST_DIR = resolve(process.cwd(), "dist");
+const INDEX_HTML_PATH = resolve(DIST_DIR, "index.html");
+
+const CONTENT_TYPES: Record<string, string> = {
+  ".css": "text/css; charset=utf-8",
+  ".html": "text/html; charset=utf-8",
+  ".js": "application/javascript; charset=utf-8",
+  ".json": "application/json; charset=utf-8",
+  ".map": "application/json; charset=utf-8",
+  ".png": "image/png",
+  ".svg": "image/svg+xml",
+  ".ico": "image/x-icon",
+};
 
 type SummaryRow = {
   estimatedPopulation: number | string;
@@ -75,6 +90,46 @@ function toFiniteNumber(input: string | null, fallback?: number) {
 
 function formatNumber(value: number) {
   return value.toFixed(6);
+}
+
+function sendStatic(
+  response: ServerResponse<IncomingMessage>,
+  statusCode: number,
+  body: Buffer,
+  contentType: string,
+) {
+  response.writeHead(statusCode, {
+    "Content-Type": contentType,
+    "Cache-Control": statusCode === 200 ? "public, max-age=300" : "no-cache",
+  });
+  response.end(body);
+}
+
+async function serveFile(
+  response: ServerResponse<IncomingMessage>,
+  filePath: string,
+  statusCode = 200,
+) {
+  const body = await readFile(filePath);
+  const contentType = CONTENT_TYPES[extname(filePath)] ?? "application/octet-stream";
+  sendStatic(response, statusCode, body, contentType);
+}
+
+async function tryServeStaticAsset(
+  pathname: string,
+  response: ServerResponse<IncomingMessage>,
+) {
+  if (pathname === "/") {
+    return false;
+  }
+
+  const candidate = resolve(DIST_DIR, `.${pathname}`);
+  if (!candidate.startsWith(DIST_DIR) || !existsSync(candidate)) {
+    return false;
+  }
+
+  await serveFile(response, candidate);
+  return true;
 }
 
 export async function querySummary(lat: number, lon: number, radiusKm: number) {
@@ -237,48 +292,66 @@ export async function requestListener(
     return;
   }
 
-  if (url.pathname !== "/api/summary" || request.method !== "GET") {
-    sendJson(response, 404, { error: "Not found." });
+  if (url.pathname === "/api/summary" && request.method === "GET") {
+    if (!existsSync(DB_PATH)) {
+      sendJson(response, 503, {
+        error: "Database not found. Run `npm run import-data` first.",
+      });
+      return;
+    }
+
+    const lat = toFiniteNumber(url.searchParams.get("lat"));
+    const lon = toFiniteNumber(url.searchParams.get("lon"));
+    const radiusKm = toFiniteNumber(url.searchParams.get("radiusKm"), 5);
+
+    if (
+      lat === undefined ||
+      lon === undefined ||
+      radiusKm === undefined ||
+      radiusKm < 0.1
+    ) {
+      sendJson(response, 400, {
+        error: "Invalid `lat`, `lon`, or `radiusKm` query parameter.",
+      });
+      return;
+    }
+
+    try {
+      const [payload, labelPayload] = await Promise.all([
+        querySummary(lat, lon, radiusKm),
+        queryLocationName(lat, lon),
+      ]);
+      sendJson(response, 200, {
+        ...payload,
+        ...labelPayload,
+      });
+    } catch (error) {
+      sendJson(response, 500, {
+        error: error instanceof Error ? error.message : "Unexpected server error.",
+      });
+    }
     return;
   }
 
-  if (!existsSync(DB_PATH)) {
-    sendJson(response, 503, {
-      error: "Database not found. Run `npm run import-data` first.",
-    });
-    return;
+  if (request.method === "GET") {
+    try {
+      if (await tryServeStaticAsset(url.pathname, response)) {
+        return;
+      }
+
+      if (existsSync(INDEX_HTML_PATH)) {
+        await serveFile(response, INDEX_HTML_PATH);
+        return;
+      }
+    } catch (error) {
+      sendJson(response, 500, {
+        error: error instanceof Error ? error.message : "Unexpected static asset error.",
+      });
+      return;
+    }
   }
 
-  const lat = toFiniteNumber(url.searchParams.get("lat"));
-  const lon = toFiniteNumber(url.searchParams.get("lon"));
-  const radiusKm = toFiniteNumber(url.searchParams.get("radiusKm"), 5);
-
-  if (
-    lat === undefined ||
-    lon === undefined ||
-    radiusKm === undefined ||
-    radiusKm < 0.1
-  ) {
-    sendJson(response, 400, {
-      error: "Invalid `lat`, `lon`, or `radiusKm` query parameter.",
-    });
-    return;
-  }
-
-  try {
-    const [payload, labelPayload] = await Promise.all([
-      querySummary(lat, lon, radiusKm),
-      queryLocationName(lat, lon),
-    ]);
-    sendJson(response, 200, {
-      ...payload,
-      ...labelPayload,
-    });
-  } catch (error) {
-    sendJson(response, 500, {
-      error: error instanceof Error ? error.message : "Unexpected server error.",
-    });
-  }
+  sendJson(response, 404, { error: "Not found." });
 }
 
 export function createApiServer() {
